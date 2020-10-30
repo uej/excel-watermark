@@ -38,6 +38,11 @@ class Watermark {
      * @var 图片后缀数组
      */
     private $suffixArr = [];
+    
+    /**
+     * @var 图片命名
+     */
+    private $nameArr = [];
 
 
     /**
@@ -76,9 +81,11 @@ class Watermark {
      */
     public function addImage($file) {
         $suffix = pathinfo($file, PATHINFO_EXTENSION);
-        $this->zip->addFile($file, 'xl/media/bgimage' . $this->num . '.' . $suffix);
+        $name   = uniqid();
+        $this->zip->addFile($file, 'xl/media/bgimage' . $name . '.' . $suffix);
         $num    = $this->num;
         $this->suffixArr[$num]  = $suffix;
+        $this->nameArr[$num]    = $name;
         $this->num++;
         return $num;
     }
@@ -104,16 +111,16 @@ class Watermark {
      * @access public
      */
     public function setBgImg($num) {
+        $nowSuffix  = strtolower($this->suffixArr[$num]);
         $this->zip->addFromString("xl/worksheets/_rels/sheet$this->sheet.xml.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/bgimage'.$num.'.png"/></Relationships>');
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/bgimage'.$this->nameArr[$num].'.'.$nowSuffix.'"/></Relationships>');
         $string = $this->zip->getFromName("xl/worksheets/sheet$this->sheet.xml");
-        $string = str_replace('</headerFooter></worksheet>', '</headerFooter><picture r:id="rId1"/></worksheet>', $string);
+        $string = str_replace('</worksheet>', '<picture r:id="rId1"/></worksheet>', $string);
         $this->zip->addFromString("xl/worksheets/sheet$this->sheet.xml", $string);
         
         $str1   = $this->zip->getFromName('[Content_Types].xml');
-        $nowSuffix  = strtolower($this->suffixArr[$num]);
         if (!strpos($str1, 'Extension="' . $nowSuffix . '"') || !strpos($str1, 'ContentType="image/' . $nowSuffix . '"')) {
-            $str1   = str_replace('</Types>', '<Default ContentType="image/png" Extension="png"/></Types>', $str1);
+            $str1   = str_replace('</Types>', '<Default ContentType="image/'. $nowSuffix .'" Extension="' . $nowSuffix . '"/></Types>', $str1);
             $this->zip->addFromString("[Content_Types].xml", $str1);
         }
     }
